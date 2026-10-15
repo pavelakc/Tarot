@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Таро">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Таро Расклад</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Forum&family=Alegreya:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column "table" — question, mode + spread, the cloth with cards, legend, then the written reading. Single committed night theme. */
+:root{
+  --bg:#0f0e1a; --cloth:#17152a; --raise:#201d38; --line:#2c2945; --fg:#e8e3f0; --muted:#9a94b0;
+  --gold:#c9a45c; --gold-dim:#8a7342; --violet:#8b7cc4;
+  --display:"Forum","Times New Roman",serif; --body:"Alegreya",Georgia,serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+body.lock{overflow:hidden}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:2px;text-align:center}
+h1{font-family:var(--display);font-weight:400;font-size:2.4rem;letter-spacing:.06em;margin:0;color:var(--gold);text-wrap:balance}
+.sub{color:var(--muted);font-style:italic;margin:0}
+.lbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px}
+textarea,input[type=search]{font:inherit;color:var(--fg);background:var(--cloth);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+textarea{min-height:64px;resize:vertical}
+textarea:focus-visible,input:focus-visible,button:focus-visible,.seg input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:inline-block;padding:7px 12px;border:1px solid var(--line);border-radius:999px;font-size:.95rem;color:var(--muted);background:var(--cloth)}
+.seg span small{font-family:var(--mono);font-size:.7rem;margin-left:4px;opacity:.8}
+.seg input:checked+span{border-color:var(--gold);color:var(--gold)}
+.mode{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.mode label{cursor:pointer}
+.mode input{position:absolute;opacity:0;pointer-events:none}
+.mode span{display:flex;flex-direction:column;padding:10px 12px;color:var(--muted);height:100%;box-sizing:border-box}
+.mode span b{font-family:var(--display);font-weight:400;font-size:1.15rem;color:var(--fg)}
+.mode span i{font-size:.85rem}
+.mode input:checked+span{background:var(--raise);box-shadow:inset 0 -2px 0 var(--gold)}
+.mode input:checked+span b{color:var(--gold)}
+.mode label+label span{border-left:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toggle{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:.95rem;cursor:pointer}
+.toggle input{accent-color:var(--gold);width:18px;height:18px}
+.btn{font-family:var(--display);font-size:1.05rem;letter-spacing:.05em;border-radius:6px;padding:10px 18px;cursor:pointer;border:1px solid var(--gold);background:var(--gold);color:#1a1526}
+.btn.ghost{background:transparent;color:var(--gold)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.table{background:radial-gradient(ellipse at 50% 40%,#1f1b38 0%,var(--cloth) 70%);border:1px solid var(--line);border-radius:10px;padding:24px 12px 18px;overflow:hidden}
+.spread{display:grid;gap:10px;grid-template-columns:repeat(var(--cols),minmax(0,1fr));max-width:calc(var(--cols) * var(--cw));margin:0 auto;align-items:start}
+.spread.arc{padding-top:calc(var(--cw) * 1.4)}
+.cell{position:relative;aspect-ratio:3/5;width:100%;max-width:100%}
+.cell.cross{transform:rotate(90deg) scale(.82);z-index:2}
+.cell[style*="--dy"]{transform:translateY(var(--dy))}
+.card{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer;perspective:900px}
+.flipbtn{position:absolute;right:-10px;bottom:-10px;z-index:3;width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--gold);color:var(--gold);display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.flipbtn svg{width:17px;height:17px}
+.flipbtn[aria-pressed=true]{background:var(--gold);color:#1a1526}
+.cell.cross .flipbtn{transform:rotate(-90deg)}
+.deal{position:absolute;inset:0;animation:deal .5s cubic-bezier(.2,.7,.3,1) both;animation-delay:calc(var(--i) * 90ms)}
+@keyframes deal{from{opacity:0;transform:translateY(-24px) rotate(-4deg)}to{opacity:1;transform:none}}
+.inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.3,.7,.2,1)}
+.card.open .inner{transform:rotateY(180deg)}
+.side{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:5px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.5);background:#f2ede0}
+.side svg,.side img{display:block;width:100%;height:100%;object-fit:cover}
+.face{transform:rotateY(180deg)}
+.face img{transition:transform .45s ease}
+.card.rev .face img{transform:rotate(180deg)}
+.slot{position:absolute;inset:0;border:1.5px dashed var(--gold-dim);border-radius:5px;display:grid;place-items:center;color:var(--gold);font-family:var(--display);font-size:1.6rem;background:rgba(201,164,92,.05)}
+.badge{position:absolute;top:-8px;left:-8px;z-index:3;width:22px;height:22px;border-radius:50%;background:var(--bg);border:1px solid var(--gold-dim);color:var(--gold);font-family:var(--mono);font-size:.7rem;display:grid;place-items:center}
+.cell.cross .badge{transform:rotate(-90deg)}
+.hint{text-align:center;color:var(--muted);font-size:.9rem;margin:16px 0 0;font-style:italic}
+ol.legend{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+ol.legend li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.num{font-family:var(--mono);color:var(--gold);font-size:.85rem;padding-top:3px}
+.pos{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.cname{font-family:var(--display);font-size:1.15rem;color:var(--fg)}
+.cname em{font-family:var(--body);font-size:.85rem;color:var(--violet);font-style:italic;margin-left:6px}
+.kw{color:var(--muted);font-size:.93rem}
+.reading{background:var(--cloth);border:1px solid var(--line);border-radius:10px;padding:18px 18px 8px;min-width:0}
+.reading h3{font-family:var(--display);font-weight:400;color:var(--gold);font-size:1.35rem;margin:18px 0 6px;letter-spacing:.03em}
+.reading h3:first-child{margin-top:0}
+.reading p{margin:0 0 12px;max-width:65ch}
+.reading ul{margin:0 0 12px;padding-left:20px}
+.reading strong{color:var(--fg);font-weight:600}
+.reading .ph{color:var(--muted);font-style:italic}
+.note{font-size:.9rem;color:var(--muted);font-style:italic;margin:0}
+details.j{border-bottom:1px solid var(--line);padding:10px 0}
+details.j summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.j summary::-webkit-details-marker{display:none}
+.jq{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jd{font-family:var(--mono);font-size:.72rem;color:var(--muted);flex-shrink:0;padding-top:4px}
+.jbody{padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.jcards{font-size:.9rem;color:var(--muted)}
+.jthumbs{display:flex;gap:6px;flex-wrap:wrap}
+.jthumbs img{width:44px;aspect-ratio:3/5;border-radius:3px}
+.jthumbs img.r{transform:rotate(180deg)}
+.linkbtn{background:none;border:0;color:var(--muted);font-family:var(--mono);font-size:.72rem;text-decoration:underline;cursor:pointer;padding:0;align-self:flex-start}
+section{display:flex;flex-direction:column;gap:10px}
+h2{font-family:var(--display);font-weight:400;font-size:1.5rem;margin:0;color:var(--fg)}
+.credit{font-size:.8rem;color:var(--muted);text-align:center;margin:0}
+
+/* picker sheet */
+.sheet{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(6,5,12,.72)}
+.panel{background:var(--cloth);border-top:1px solid var(--line);border-radius:14px 14px 0 0;max-height:88%;display:flex;flex-direction:column;
+  padding-top:14px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));width:100%;max-width:760px;margin:0 auto;box-sizing:border-box}
+.ph-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ph-head h3{font-family:var(--display);font-weight:400;font-size:1.3rem;margin:0;color:var(--gold)}
+.x{background:none;border:0;color:var(--muted);font-size:1.6rem;line-height:1;cursor:pointer;padding:4px}
+.ptools{display:flex;flex-direction:column;gap:10px;padding:10px 0}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tabs button{flex-shrink:0;font:inherit;font-size:.92rem;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
+.tabs button[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+.pgrid{overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:10px;padding:4px 2px 8px}
+.pick{background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;gap:4px;color:var(--fg);font:inherit;font-size:.75rem;line-height:1.2;text-align:center;min-width:0}
+.pick img{width:100%;aspect-ratio:3/5;border-radius:4px;display:block;background:#f2ede0}
+.pick.rev img{transform:rotate(180deg)}
+.pick:disabled{opacity:.25;cursor:not-allowed}
+.pick.cur img{outline:2px solid var(--gold);outline-offset:2px}
+.pfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:8px;border-top:1px solid var(--line)}
+.sharebar{display:flex;flex-wrap:wrap;gap:8px}
+.sbtn{font:inherit;font-size:.95rem;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;border:1px solid var(--gold-dim);background:var(--raise);color:var(--fg);cursor:pointer}
+.sbtn svg{width:16px;height:16px;color:var(--gold)}
+.sbtn:hover{border-color:var(--gold)}
+.sbtn:disabled{opacity:.5;cursor:wait}
+.jbody .sharebar .sbtn{font-size:.85rem;padding:6px 11px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--raise);border:1px solid var(--gold-dim);color:var(--fg);padding:10px 16px;border-radius:999px;font-size:.95rem;box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:calc(100% - 32px)}
+details.set{border:1px solid var(--line);border-radius:8px;padding:10px 14px;background:var(--cloth)}
+details.set summary{cursor:pointer;font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.setbody{display:flex;flex-direction:column;gap:10px;padding-top:12px}
+.setbody input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px;min-width:0}
+.copyarea{width:100%;box-sizing:border-box;min-height:120px;font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.deal{animation:none}.inner{transition:none}}
+</style>
+<script>window.__SITE__=true</script>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Таро Расклад</h1>
+    <p class="sub">Колода Райдера–Уэйта–Смит, 1909</p>
+  </header>
+
+  <div class="field">
+    <label class="lbl" for="q">Ваш вопрос</label>
+    <textarea id="q" placeholder="Например: стоит ли мне менять работу этой осенью?"></textarea>
+  </div>
+
+  <div class="mode" role="radiogroup" aria-label="Режим">
+    <label><input type="radio" name="mode" id="m-online" value="online" checked><span><b>Онлайн</b><i>карты тянет приложение</i></span></label>
+    <label><input type="radio" name="mode" id="m-real" value="real"><span><b>Мои карты</b><i>вводите выпавшие из колоды</i></span></label>
+  </div>
+
+  <div class="field">
+    <span class="lbl">Расклад</span>
+    <div class="seg" id="spreads"></div>
+  </div>
+
+  <div class="row" id="onlineCtl">
+    <button class="btn" id="draw">Перемешать и разложить</button>
+  </div>
+  <div class="row" id="realCtl" hidden>
+    <button class="btn ghost" id="clearReal">Очистить расклад</button>
+  </div>
+
+  <div class="table">
+    <div class="spread" id="spread"></div>
+    <p class="hint" id="hint"></p>
+  </div>
+
+  <div class="row">
+    <button class="btn ghost" id="openAll" disabled>Открыть все</button>
+    <button class="btn" id="readBtn" disabled>Полный разбор</button>
+  </div>
+
+  <ol class="legend" id="legend"></ol>
+
+  <div class="reading" id="reading" hidden></div>
+  <div class="sharebar" id="shareBar" hidden></div>
+
+  <details class="set" id="settings" hidden>
+    <summary>Настройки разбора</summary>
+    <div class="setbody">
+      <p class="note">Вне Claude полный разбор делается через ваш ключ Anthropic API. Ключ хранится только в этом браузере и отправляется только на api.anthropic.com. Без ключа приложение даст скопировать готовый запрос, и его можно вставить в приложение Claude.</p>
+      <label class="lbl" for="apiKey">Ключ API</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+      <div class="row"><button class="btn ghost" id="keySave" type="button">Сохранить ключ</button><button class="linkbtn" id="keyDel" type="button">Удалить ключ</button></div>
+    </div>
+  </details>
+
+  <section>
+    <h2>Дневник раскладов</h2>
+    <div id="journal"></div>
+  </section>
+
+  <p class="credit">Рисунки Памелы Колман Смит (1909), общественное достояние</p>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+    <div class="ph-head"><h3 id="pTitle">Выберите карту</h3><button class="x" id="pClose" aria-label="Закрыть">×</button></div>
+    <div class="ptools">
+      <input type="search" id="pSearch" placeholder="Поиск: Маг, туз, кубков…" autocomplete="off">
+      <div class="tabs" id="pTabs"></div>
+    </div>
+    <div class="pgrid" id="pGrid"></div>
+    <div class="pfoot">
+      <span class="note">Переворот задаётся кнопкой у карты на столе</span>
+      <button class="btn ghost" id="pRemove" hidden>Убрать карту</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const MAJ=[
+['Шут','новое начало, спонтанность, свобода, доверие к пути','безрассудство, наивность, риск без плана'],
+['Маг','воля, мастерство, ресурсы под рукой, действие','манипуляция, нереализованный потенциал'],
+['Верховная Жрица','интуиция, тайна, внутреннее знание','скрытые мотивы, глухота к интуиции'],
+['Императрица','изобилие, забота, творчество, плодородие','застой, зависимость, гиперопека'],
+['Император','структура, власть, порядок, стабильность','жёсткий контроль, деспотизм'],
+['Иерофант','традиция, учение, наставник, институты','бунт против правил, догма'],
+['Влюблённые','союз, выбор по ценностям, гармония','разлад, неверный выбор'],
+['Колесница','победа, воля, движение вперёд','потеря направления, агрессия'],
+['Сила','мужество, терпение, мягкая сила','неуверенность, сомнение в себе'],
+['Отшельник','уединение, поиск, мудрость','изоляция, уход от мира'],
+['Колесо Фортуны','перемены, цикл, судьба, удача','невезение, сопротивление переменам'],
+['Справедливость','правда, баланс, последствия','несправедливость, нечестность'],
+['Повешенный','пауза, новый взгляд, жертва','застой, бесполезная жертва'],
+['Смерть','завершение, трансформация, переход','цепляние за прошлое'],
+['Умеренность','баланс, мера, терпение, синтез','крайности, нетерпение'],
+['Дьявол','привязанность, искушение, зависимость','освобождение, разрыв оков'],
+['Башня','внезапный крах, откровение, потрясение','страх перемен, отсроченный кризис'],
+['Звезда','надежда, исцеление, вдохновение','уныние, потеря веры'],
+['Луна','иллюзии, страхи, подсознание','рассеивание тумана, раскрытие обмана'],
+['Солнце','радость, успех, ясность','приглушённая радость, временные трудности'],
+['Суд','пробуждение, итог, призвание','самокритика, отказ слышать зов'],
+['Мир','завершённость, целостность, достижение','незавершённость, нет закрытия']
+];
+const SUITS=[
+ {k:'w',n:'Жезлы',g:'Жезлов',el:'Огонь',m:['вдохновение, новый проект, энергия|задержки, нет мотивации','планирование, выбор пути, перспективы|страх неизвестного, нерешительность','расширение, ожидание плодов, дальновидность|препятствия, задержки в планах','праздник, дом, стабильность|нестабильность, нет поддержки','соперничество, споры, конфликт|избегание конфликта, внутренняя борьба','победа, признание, успех|падение репутации, самонадеянность','защита позиций, стойкость|усталость, сдача позиций','быстрые события, новости, движение|задержки, суета, расфокус','упорство, последний рубеж|истощение, подозрительность','перегрузка, бремя ответственности|сброс груза, делегирование','энтузиазм, добрая весть, поиск|ветреность, плохие новости','порыв, приключение, страсть|импульсивность, спешка','уверенность, харизма, решительность|ревность, неуверенность','лидерство, видение, предприимчивость|властность, завышенные ожидания']},
+ {k:'c',n:'Кубки',g:'Кубков',el:'Вода',m:['новые чувства, любовь, открытость|закрытость, подавленные эмоции','союз, взаимность, партнёрство|разлад, дисбаланс в паре','дружба, праздник, общность|излишества, сплетни','апатия, неудовлетворённость|новый интерес, пробуждение','потеря, сожаление, печаль|принятие, движение дальше','ностальгия, доброта, прошлое|жизнь прошлым','иллюзии, множество вариантов|ясность, реальный выбор','уход, поиск глубины|страх уйти, бесцельность','исполнение желания, удовлетворение|самодовольство, пустота','семейное счастье, гармония|разлад в семье','чувствительность, творческая весть|эмоциональная незрелость','романтика, предложение, обаяние|непостоянство, иллюзии','сострадание, интуиция, забота|созависимость, перегруз чувствами','эмоциональная зрелость, спокойствие|холодность, манипуляция чувствами']},
+ {k:'s',n:'Мечи',g:'Мечей',el:'Воздух',m:['ясность, истина, прорыв|путаница, ложь','тупик, трудное решение|перегрузка, решение принято','боль, разбитое сердце|восстановление, прощение','отдых, восстановление, пауза|тревога, выгорание','конфликт, победа любой ценой|примирение, сожаление','переход, уход от трудностей|застревание, незавершённый переезд','хитрость, скрытность, стратегия|разоблачение, признание','ограничения, ловушка мыслей|освобождение, новый взгляд','тревога, бессонница, страхи|надежда, отпускание страхов','дно, болезненный конец|худшее позади, восстановление','любопытство, бдительность, идеи|сплетни, болтливость','напор, амбиции, быстрые действия|безрассудство, грубость','независимость, ясный ум, прямота|холодность, жестокость','интеллект, авторитет, истина|злоупотребление властью']},
+ {k:'p',n:'Пентакли',g:'Пентаклей',el:'Земля',m:['новая возможность, достаток|упущенный шанс, плохое планирование','баланс, гибкость, много дел|перегрузка, неорганизованность','командная работа, мастерство|несогласованность','накопление, контроль, бережливость|жадность, страх потерь','нужда, трудности, изоляция|восстановление, помощь','щедрость, обмен, поддержка|долги, неравный обмен','терпение, долгие вложения|нетерпение, плохая отдача','усердие, ремесло, мастерство|перфекционизм, рутина','самодостаточность, комфорт|зависимость, показная роскошь','богатство, наследие, семья|финансовые потери, семейные споры','учёба, практичный план|лень, нет прогресса','трудолюбие, надёжность|застой, скука','практичность, забота о быте|растворение в работе','достаток, деловая хватка|жадность, упрямство']}
+];
+const RANKS=['Туз','Двойка','Тройка','Четвёрка','Пятёрка','Шестёрка','Семёрка','Восьмёрка','Девятка','Десятка','Паж','Рыцарь','Королева','Король'];
+const RANK_ALIAS=['туз 1','2','3','4','5','6','7','8','9','10','паж','рыцарь','королева дама','король'];
+
+const DECK=[];
+MAJ.forEach(([n,u,r],i)=>DECK.push({name:n,up:u,rev:r,major:true,tab:'m',search:(n+' '+i+' старший аркан').toLowerCase()}));
+SUITS.forEach(s=>s.m.forEach((m,i)=>{const [u,r]=m.split('|');DECK.push({name:RANKS[i]+' '+s.g,up:u,rev:r,major:false,suit:s,tab:s.k,search:(RANKS[i]+' '+RANK_ALIAS[i]+' '+s.g+' '+s.n).toLowerCase()});}));
+const img=i=>'cards/'+String(i).padStart(2,'0')+'.webp';
+
+const SPREADS={
+ one:{name:'Карта дня',cols:1,cw:'170px',pos:[{n:'Послание',c:1,r:1}]},
+ three:{name:'Три карты',cols:3,cw:'130px',pos:[{n:'Прошлое',c:1,r:1},{n:'Настоящее',c:2,r:1},{n:'Будущее',c:3,r:1}]},
+ yesno:{name:'Да / Нет',cols:3,cw:'130px',extra:'Это расклад «Да/Нет». В разделе «Итог» дай чёткий ответ: «Да», «Скорее да», «Скорее нет» или «Нет», и одним предложением объясни почему. Учитывай, что прямые карты склоняют к «да», перевёрнутые к «нет», а центральная карта весит больше.',pos:[{n:'Что говорит «за»',c:1,r:1},{n:'Суть ответа',c:2,r:1},{n:'Что говорит «против»',c:3,r:1}]},
+ choice:{name:'Выбор',cols:3,cw:'120px',extra:'Это расклад на выбор между двумя вариантами. Если в вопросе названы варианты, считай первый вариантом А, второй вариантом Б. В «Совете» прямо скажи, какой путь выглядит благоприятнее и при каком условии.',pos:[{n:'Ситуация сейчас',c:2,r:1},{n:'Путь А',c:1,r:2},{n:'Что даст путь А',c:1,r:3},{n:'Ключевой совет',c:2,r:2},{n:'Путь Б',c:3,r:2},{n:'Что даст путь Б',c:3,r:3}]},
+ rel:{name:'Отношения',cols:6,cw:'60px',pos:[{n:'Вы',c:1,s:2,r:1},{n:'Что вас связывает',c:3,s:2,r:1},{n:'Партнёр',c:5,s:2,r:1},{n:'Трудность',c:2,s:2,r:2},{n:'Перспектива',c:4,s:2,r:2}]},
+ month:{name:'Месяц',cols:8,cw:'56px',extra:'Это расклад на ближайший месяц: первые четыре позиции соответствуют неделям по порядку.',pos:[{n:'Первая неделя',c:1,s:2,r:1},{n:'Вторая неделя',c:3,s:2,r:1},{n:'Третья неделя',c:5,s:2,r:1},{n:'Четвёртая неделя',c:7,s:2,r:1},{n:'Главная тема месяца',c:4,s:2,r:2}]},
+ horse:{name:'Подкова',cols:7,cw:'64px',arc:true,pos:[{n:'Прошлое',c:1,dy:'0%'},{n:'Настоящее',c:2,dy:'-40%'},{n:'Скрытые влияния',c:3,dy:'-68%'},{n:'Препятствия',c:4,dy:'-78%'},{n:'Окружение',c:5,dy:'-68%'},{n:'Что делать',c:6,dy:'-40%'},{n:'Итог',c:7,dy:'0%'}]},
+ celtic:{name:'Кельтский крест',cols:4,cw:'100px',pos:[{n:'Суть ситуации',c:2,r:2},{n:'Что мешает',c:2,r:2,x:1},{n:'Основа, корни',c:2,r:3},{n:'Недавнее прошлое',c:1,r:2},{n:'Сознательная цель',c:2,r:1},{n:'Ближайшее будущее',c:3,r:2},{n:'Вы сами',c:4,r:4},{n:'Окружение',c:4,r:3},{n:'Надежды и страхи',c:4,r:2},{n:'Итог',c:4,r:1}]}
+};
+
+const $=id=>document.getElementById(id);
+let spreadKey='three', mode='online', drawn=[], ctrl=null;
+let samplePromise=null;
+try{samplePromise=window.claude&&window.claude.use?window.claude.use('sample'):null}catch(e){samplePromise=null}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function rnd(n){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n}
+
+const BACK=(()=>{let rays='';for(let i=0;i<16;i++){const a=i*Math.PI/8,l=i%2?14:24;rays+=`<line x1="30" y1="50" x2="${(30+Math.sin(a)*l).toFixed(1)}" y2="${(50-Math.cos(a)*l).toFixed(1)}"/>`}
+return `<svg viewBox="0 0 60 100" preserveAspectRatio="none"><rect width="60" height="100" fill="#24204a"/><rect x="3.5" y="3.5" width="53" height="93" rx="2.5" fill="none" stroke="#c9a45c" stroke-width=".7"/><rect x="6" y="6" width="48" height="88" rx="2" fill="none" stroke="#8a7342" stroke-width=".35"/><g stroke="#c9a45c" stroke-width=".6">${rays}</g><circle cx="30" cy="50" r="5.5" fill="#24204a" stroke="#c9a45c" stroke-width=".7"/><circle cx="30" cy="50" r="1.8" fill="#c9a45c"/><path d="M30 11l1.8 3.5-1.8 3.5-1.8-3.5zM30 82l1.8 3.5-1.8 3.5-1.8-3.5z" fill="#c9a45c"/></svg>`})();
+
+/* spread + mode selectors */
+const segEl=$('spreads');
+Object.entries(SPREADS).forEach(([k,s])=>{
+ const l=document.createElement('label');
+ l.innerHTML=`<input type="radio" name="spread" id="sp-${k}" value="${k}" ${k===spreadKey?'checked':''}><span>${s.name}<small>${s.pos.length}</small></span>`;
+ l.querySelector('input').addEventListener('change',()=>{spreadKey=k;reset();});
+ segEl.appendChild(l);
+});
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',()=>{mode=r.value;$('onlineCtl').hidden=mode!=='online';$('realCtl').hidden=mode!=='real';reset();}));
+
+function reset(){
+ drawn=mode==='real'?SPREADS[spreadKey].pos.map(()=>null):[];
+ if(ctrl){ctrl.abort();ctrl=null}
+ $('reading').hidden=true;$('reading').innerHTML='';
+ render(false);
+}
+
+function draw(){
+ const sp=SPREADS[spreadKey];
+ const idx=DECK.map((_,i)=>i);
+ for(let i=idx.length-1;i>0;i--){const j=rnd(i+1);[idx[i],idx[j]]=[idx[j],idx[i]]}
+ drawn=sp.pos.map((_,i)=>({i:idx[i],rev:rnd(2)===1,open:false}));
+ if(ctrl){ctrl.abort();ctrl=null}
+ $('reading').hidden=true;$('reading').innerHTML='';
+ render(true);
+}
+
+function complete(){const sp=SPREADS[spreadKey];return drawn.length===sp.pos.length&&drawn.every(d=>d&&d.open)}
+
+function render(animate){
+ const sp=SPREADS[spreadKey], el=$('spread');
+ el.style.setProperty('--cols',sp.cols);el.style.setProperty('--cw',sp.cw);
+ el.classList.toggle('arc',!!sp.arc);
+ el.innerHTML='';
+ const FLIP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5"/><path d="M20 3.5v5h-5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.5"/><path d="M4 20.5v-5h5"/></svg>';
+ sp.pos.forEach((p,k)=>{
+   const d=drawn[k];
+   const cell=document.createElement('div');
+   cell.className='cell'+(p.x?' cross':'');
+   cell.style.gridColumn=p.c+' / span '+(p.s||1);cell.style.gridRow=p.r||1;
+   if(p.dy)cell.style.setProperty('--dy',p.dy);
+   const b=document.createElement('button');
+   b.className='card'+(d&&d.open?' open':'')+(d&&d.rev?' rev':'');
+   const lab=()=>(k+1)+'. '+p.n+(d&&d.open?': '+DECK[d.i].name+(d.rev?', перевёрнутая':''):(mode==='real'?', выбрать карту':''));
+   b.setAttribute('aria-label',lab());
+   cell.insertAdjacentHTML('beforeend',`<span class="badge">${k+1}</span>`);
+   if(mode==='real'&&!d){
+     b.innerHTML=`<span class="slot">+</span>`;
+     b.addEventListener('click',()=>openPicker(k));
+   }else if(!d){
+     b.innerHTML=`<span class="deal" style="--i:${k};animation:none"><span class="inner"><span class="side back">${BACK}</span></span></span>`;
+     b.disabled=true;
+   }else{
+     b.innerHTML=`<span class="deal" style="--i:${k};${animate?'':'animation:none'}"><span class="inner"><span class="side back">${BACK}</span><span class="side face"><img src="${img(d.i)}" alt="" decoding="async"></span></span></span>`;
+     b.addEventListener('click',()=>{
+       if(mode==='real'){openPicker(k);return}
+       if(!d.open){d.open=true;b.classList.add('open');b.setAttribute('aria-label',lab());update();}
+     });
+   }
+   cell.appendChild(b);
+   if(mode==='real'&&d){
+     const f=document.createElement('button');
+     f.type='button';f.className='flipbtn';f.innerHTML=FLIP;
+     const setF=()=>{f.setAttribute('aria-pressed',d.rev);f.setAttribute('aria-label',(d.rev?'Перевёрнутая. Сделать прямой: ':'Прямая. Перевернуть: ')+DECK[d.i].name)};
+     setF();
+     f.addEventListener('click',e=>{e.stopPropagation();d.rev=!d.rev;b.classList.toggle('rev',d.rev);b.setAttribute('aria-label',lab());setF();$('reading').hidden=true;$('shareBar').hidden=true;update();});
+     cell.appendChild(f);
+   }
+   el.appendChild(cell);
+ });
+ update();
+}
+
+function update(){
+ const sp=SPREADS[spreadKey], has=drawn.some(Boolean), done=complete();
+ const filled=drawn.filter(Boolean).length;
+ $('hint').textContent=mode==='real'
+   ?(done?'Все карты на месте. Кнопка ⟲ у карты переворачивает её, нажатие на карту меняет её':`Нажмите на позицию и выберите карту, которая выпала · ${filled} из ${sp.pos.length}`)
+   :(!has?'Нажмите «Перемешать и разложить»':done?'Все карты открыты':'Нажмите на карту, чтобы открыть её');
+ $('openAll').hidden=mode==='real';
+ $('openAll').disabled=!has||done;
+ $('readBtn').disabled=!done;
+ if(!done){$('shareBar').hidden=true}
+ $('legend').innerHTML=sp.pos.map((p,k)=>{
+   const d=drawn[k];let body;
+   if(d&&d.open){const c=DECK[d.i];body=`<div class="cname">${esc(c.name)}${d.rev?'<em>перевёрнутая</em>':''}</div><div class="kw">${esc(d.rev?c.rev:c.up)}</div>`}
+   else body=`<div class="kw">${mode==='real'?'не выбрана':has?'карта закрыта':'—'}</div>`;
+   return `<li><span class="num">${String(k+1).padStart(2,'0')}</span><div><div class="pos">${esc(p.n)}</div>${body}</div></li>`;
+ }).join('');
+}
+
+$('draw').addEventListener('click',draw);
+$('clearReal').addEventListener('click',reset);
+$('openAll').addEventListener('click',()=>{
+ const cards=[...$('spread').querySelectorAll('.card')];
+ drawn.forEach((d,k)=>{if(d&&!d.open){setTimeout(()=>{d.open=true;cards[k].classList.add('open');update();},k*140)}});
+});
+
+/* picker */
+const TABS=[['all','Все'],['m','Старшие'],['w','Жезлы'],['c','Кубки'],['s','Мечи'],['p','Пентакли']];
+let pPos=-1, pTab='all', lastFocus=null;
+$('pTabs').innerHTML=TABS.map(([k,n])=>`<button type="button" data-t="${k}" aria-pressed="${k==='all'}">${n}</button>`).join('');
+$('pTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;pTab=b.dataset.t;$('pTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderGrid();});
+$('pSearch').addEventListener('input',renderGrid);
+function openPicker(k){
+ pPos=k;lastFocus=document.activeElement;
+ const d=drawn[k];
+ $('pTitle').textContent=(k+1)+'. '+SPREADS[spreadKey].pos[k].n;
+ $('pRemove').hidden=!d;
+ $('pSearch').value='';
+ $('sheet').hidden=false;document.body.classList.add('lock');
+ renderGrid();
+ if(d){const cur=$('pGrid').querySelector('.cur');if(cur)cur.scrollIntoView({block:'center'})}
+ setTimeout(()=>$('pClose').focus(),0);
+}
+function closePicker(){$('sheet').hidden=true;document.body.classList.remove('lock');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
+$('pClose').addEventListener('click',closePicker);
+$('sheet').addEventListener('click',e=>{if(e.target===$('sheet'))closePicker()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('sheet').hidden)closePicker()});
+$('pRemove').addEventListener('click',()=>{drawn[pPos]=null;closePicker();render(false);});
+function renderGrid(){
+ const q=$('pSearch').value.trim().toLowerCase();
+ const used=new Set(drawn.map((d,k)=>d&&k!==pPos?d.i:null).filter(v=>v!==null));
+ const cur=drawn[pPos]?drawn[pPos].i:-1;
+ const words=q.split(/\s+/).filter(Boolean);
+ $('pGrid').innerHTML=DECK.map((c,i)=>{
+   if(pTab!=='all'&&c.tab!==pTab)return'';
+   if(words.length&&!words.every(w=>c.search.includes(w)))return'';
+   return `<button type="button" class="pick${i===cur?' cur':''}" data-i="${i}" ${used.has(i)?'disabled':''}><img src="${img(i)}" alt="" loading="lazy" decoding="async"><span>${esc(c.name)}</span></button>`;
+ }).join('')||'<p class="note">Ничего не найдено</p>';
+}
+$('pGrid').addEventListener('click',e=>{
+ const b=e.target.closest('.pick');if(!b||b.disabled)return;
+ drawn[pPos]={i:+b.dataset.i,rev:drawn[pPos]?drawn[pPos].rev:false,open:true};
+ closePicker();render(false);
+ $('reading').hidden=true;$('shareBar').hidden=true;
+});
+
+/* markdown-lite */
+function md(t){
+ const lines=esc(t).split('\n');let html='',list=false,para=[];
+ const inline=s=>s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^*])\*(?!\s)(.+?)\*/g,'$1<em>$2</em>');
+ const flush=()=>{if(para.length){html+='<p>'+inline(para.join(' '))+'</p>';para=[]}};
+ lines.forEach(l=>{const s=l.trim();
+   if(/^#{1,4}\s/.test(s)){flush();if(list){html+='</ul>';list=false}html+='<h3>'+inline(s.replace(/^#+\s*/,''))+'</h3>'}
+   else if(/^([-•*]|\d+\.)\s/.test(s)&&!/^\*\*/.test(s)){flush();if(!list){html+='<ul>';list=true}html+='<li>'+inline(s.replace(/^([-•*]|\d+\.)\s/,''))+'</li>'}
+   else if(!s){flush();if(list){html+='</ul>';list=false}}
+   else{if(list){html+='</ul>';list=false}para.push(s)}
+ });flush();if(list)html+='</ul>';return html;
+}
+
+function buildPrompt(q){
+ const sp=SPREADS[spreadKey];
+ const cards=sp.pos.map((p,k)=>{const d=drawn[k],c=DECK[d.i];
+   const extra=c.major?'Старший аркан':`Младший аркан, масть ${c.suit.n.toLowerCase()}, стихия ${c.suit.el}`;
+   return `${k+1}. Позиция «${p.n}»: ${c.name} (${d.rev?'перевёрнутая':'прямая'}; ${extra}). Ключевые значения: ${d.rev?c.rev:c.up}.`}).join('\n');
+ return `Ты опытный, вдумчивый таролог, работаешь с колодой Райдера–Уэйта–Смит. Сделай полный разбор расклада на русском языке, тёплым и ясным языком, без воды. Опирайся и на традиционные значения, и на образы карт этой колоды.
+
+Вопрос: ${q||'(вопрос не задан, сделай общий разбор текущей ситуации)'}
+Расклад: ${sp.name}
+${mode==='real'?'Карты вытянуты человеком из настоящей колоды.':'Карты вытянуты случайно онлайн.'}
+${sp.extra?sp.extra+'\n':''}Карты:
+${cards}
+
+Формат ответа (Markdown):
+## Общая картина
+2–4 предложения: главное, что говорит расклад о вопросе.
+## Карты по позициям
+Для каждой карты отдельный абзац, начинающийся с **N. Позиция — Карта (прямая/перевёрнутая)**, затем 2–4 предложения о значении именно в этой позиции и в контексте вопроса.
+## Связи между картами
+Как карты влияют друг на друга: повторяющиеся масти и числа, Старшие арканы, стихии, контрасты, динамика.
+## Совет
+2–4 конкретных практических совета списком.
+## Итог
+Одно-два ёмких предложения.
+
+Не добавляй рассуждений о том, научно ли таро. Если вопрос касается здоровья, денег или права, в совете мягко порекомендуй также обратиться к специалисту.`;
+}
+
+const IN_CLAUDE=!!(window.claude&&window.claude.use);
+const MODEL='claude-sonnet-5-5';
+const KK='tarot.apikey.v1';
+function getKey(){try{return localStorage.getItem(KK)||''}catch(e){return''}}
+if(!IN_CLAUDE){
+ $('settings').hidden=false;
+ $('apiKey').value=getKey();
+ $('keySave').addEventListener('click',()=>{const v=$('apiKey').value.trim();try{v?localStorage.setItem(KK,v):localStorage.removeItem(KK)}catch(e){}toast(v?'Ключ сохранён на этом устройстве':'Ключ удалён')});
+ $('keyDel').addEventListener('click',()=>{try{localStorage.removeItem(KK)}catch(e){}$('apiKey').value='';toast('Ключ удалён')});
+}
+
+async function apiReading(prompt,onText,signal){
+ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers:{'content-type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:MODEL,max_tokens:4000,stream:true,messages:[{role:'user',content:prompt}]})});
+ if(!r.ok){let m='';try{const j=await r.json();m=(j.error&&j.error.message)||''}catch(e){}throw{code:'http_'+r.status,message:m}}
+ const reader=r.body.getReader(),dec=new TextDecoder();let buf='',text='';
+ for(;;){const {done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});let n;
+   while((n=buf.indexOf('\n'))>=0){const line=buf.slice(0,n).trim();buf=buf.slice(n+1);if(!line.startsWith('data:'))continue;
+     let ev;try{ev=JSON.parse(line.slice(5))}catch(e){continue}
+     if(ev.type==='content_block_delta'&&ev.delta&&ev.delta.type==='text_delta'){text+=ev.delta.text;onText(text)}
+     else if(ev.type==='error'){throw{code:'stream',message:ev.error&&ev.error.message,text}}}}
+ return text;
+}
+
+let current=null;
+$('readBtn').addEventListener('click',async()=>{
+ const out=$('reading');out.hidden=false;$('shareBar').hidden=true;current=null;if(TTS&&ttsBtn)stopSpeak();
+ const q=$('q').value.trim(), prompt=buildPrompt(q);
+ const s=samplePromise?await samplePromise.catch(()=>null):null;
+ const useApi=!s&&!IN_CLAUDE&&getKey();
+ if(!s&&!useApi){
+   out.innerHTML=IN_CLAUDE?'<p class="note">Полный разбор сейчас недоступен. Значения карт выше доступны всегда.</p>'
+     :'<p class="note">Чтобы получить разбор прямо здесь, добавьте ключ в «Настройках разбора» ниже. Или скопируйте готовый запрос и вставьте его в приложение Claude.</p><div class="row" style="margin:10px 0 12px"><button class="btn" id="copyPrompt" type="button">Скопировать запрос</button></div>';
+   const cp=$('copyPrompt');if(cp)cp.addEventListener('click',()=>copyText(prompt,'Запрос скопирован. Вставьте его в Claude'));
+   return;
+ }
+ if(ctrl)ctrl.abort();ctrl=new AbortController();
+ out.innerHTML='<p class="ph">Карты складываются в историю…</p>';
+ out.scrollIntoView({behavior:'smooth',block:'start'});
+ $('readBtn').disabled=true;
+ let pending=null;
+ const onText=text=>{pending=text;requestAnimationFrame(()=>{if(pending!=null){out.innerHTML=md(pending);pending=null}})};
+ try{
+   const text=s?(await s(prompt,{signal:ctrl.signal,modelTier:'default',onText:({text})=>onText(text)})).text:await apiReading(prompt,onText,ctrl.signal);
+   out.innerHTML=md(text);
+   current=saveJournal(q,text);
+   showShareBar($('shareBar'),current);
+ }catch(e){
+   if(e&&e.name==='AbortError')return;
+   const code=e&&e.code;
+   const msg=code==='not_granted'?'Разрешите странице обращаться к Claude, чтобы получить разбор.'
+     :code==='rate_limited'||code==='http_429'?'Слишком много запросов подряд. Подождите минуту и попробуйте снова.'
+     :code==='http_401'||code==='http_403'?'Ключ API не подошёл. Проверьте его в «Настройках разбора».'
+     :code==='http_529'||code==='http_503'?'Сервис сейчас перегружен. Попробуйте через пару минут.'
+     :'Разбор не получился. Проверьте интернет и попробуйте ещё раз.';
+   out.innerHTML='<p class="note">'+msg+'</p>'+(e&&e.text?md(e.text):'');
+ }finally{$('readBtn').disabled=!complete()}
+});
+
+/* sharing */
+const ICON={share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+ copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+ speak:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+ stop:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>',
+ image:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>'};
+let toastT=null;
+function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2800)}
+function fmtDate(iso){return new Date(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})}
+function plain(t){return t.replace(/^#{1,4}\s*(.+)$/gm,(m,h)=>h.toUpperCase()).replace(/\*\*(.+?)\*\*/g,'$1').replace(/(^|[^*])\*(?!\s)(.+?)\*/g,'$1$2').replace(/\n{3,}/g,'\n\n').trim()}
+function shareText(r){
+ return `ТАРО · ${r.spread} · ${fmtDate(r.date)}\n`+(r.q?`Вопрос: ${r.q}\n`:'')+`\n`+r.cards.map((c,k)=>`${k+1}. ${c.p}: ${DECK[c.i].name}${c.rev?' (перевёрнутая)':''}`).join('\n')+`\n\n`+plain(r.text);
+}
+function copyText(t,okMsg){
+ const fallback=()=>{
+   const out=$('reading');out.hidden=false;
+   let ta=document.getElementById('copyArea');
+   if(!ta){ta=document.createElement('textarea');ta.id='copyArea';ta.className='copyarea';ta.readOnly=true;out.appendChild(ta)}
+   ta.value=t;ta.focus();ta.select();toast('Текст выделен, скопируйте его вручную');
+ };
+ try{const p=navigator.clipboard&&navigator.clipboard.writeText(t);if(!p){fallback();return}p.then(()=>toast(okMsg||'Скопировано'),fallback)}catch(e){fallback()}
+}
+function section(text,names){
+ const parts=text.split(/^#{1,4}\s*/m);
+ for(const n of names){const hit=parts.find(x=>x.toLowerCase().startsWith(n));if(hit)return plain(hit.slice(hit.indexOf('\n')+1))}
+ return '';
+}
+function loadImg(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src})}
+function wrap(ctx,text,maxW){
+ const out=[];text.split('\n').forEach(par=>{if(!par.trim()){out.push('');return}let line='';
+   par.split(/\s+/).forEach(w=>{const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=w}else line=t});out.push(line)});
+ return out;
+}
+async function makeImage(r){
+ try{await Promise.all(['56px Forum','italic 32px Alegreya','28px Alegreya','22px "IBM Plex Mono"'].map(f=>document.fonts.load(f)))}catch(e){}
+ const ims=await Promise.all(r.cards.map(c=>loadImg(img(c.i)).catch(()=>null)));
+ const W=1080,P=64,G=22,n=r.cards.length,cols=n<=3?n:n<=5?n:n<=8?4:5,rows=Math.ceil(n/cols);
+ const cw=Math.min(n===1?300:230,Math.floor((W-2*P-G*(cols-1))/cols)),ch=Math.round(cw*5/3);
+ const C='#c9a45c',FG='#e8e3f0',MU='#9a94b0',BG='#0f0e1a';
+ const sum=section(r.text,['итог'])||section(r.text,['общая картина']);
+ const advice=section(r.text,['совет']);
+ const run=(ctx,draw)=>{
+   let y=P;
+   const txt=(t,font,col,x,align)=>{if(draw){ctx.font=font;ctx.fillStyle=col;ctx.textAlign=align||'left';ctx.fillText(t,x,y)}};
+   ctx.font='56px Forum, serif';y+=50;txt('ТАРО РАСКЛАД','56px Forum, serif',C,W/2,'center');
+   y+=44;txt((r.spread+' · '+fmtDate(r.date)).toUpperCase(),'22px "IBM Plex Mono", monospace',MU,W/2,'center');
+   if(r.q){ctx.font='italic 34px Alegreya, Georgia, serif';y+=30;wrap(ctx,'«'+r.q+'»',W-2*P).forEach(l=>{y+=44;txt(l,'italic 34px Alegreya, Georgia, serif',FG,W/2,'center')})}
+   y+=40;
+   for(let row=0;row<rows;row++){
+     const inRow=r.cards.slice(row*cols,row*cols+cols),rw=inRow.length*cw+(inRow.length-1)*G;let x=(W-rw)/2;
+     let maxLab=0;
+     inRow.forEach((c,j)=>{const k=row*cols+j,im=ims[k];
+       if(draw){ctx.save();ctx.translate(x+cw/2,y+ch/2);if(c.rev)ctx.rotate(Math.PI);
+         ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=18;ctx.shadowOffsetY=6;ctx.fillStyle='#f2ede0';ctx.fillRect(-cw/2,-ch/2,cw,ch);ctx.shadowColor='transparent';
+         if(im)ctx.drawImage(im,-cw/2,-ch/2,cw,ch);ctx.restore()}
+       let ly=y+ch+30;
+       const lab=(t,font,col)=>{ctx.font=font;wrap(ctx,t,cw+G-6).forEach(l=>{if(draw){ctx.fillStyle=col;ctx.textAlign='center';ctx.fillText(l,x+cw/2,ly)}ly+=parseInt(font)+6})};
+       lab((k+1)+'. '+c.p.toUpperCase(),'17px "IBM Plex Mono", monospace',MU);
+       lab(DECK[c.i].name+(c.rev?' ⟲':''),'23px Forum, serif',FG);
+       maxLab=Math.max(maxLab,ly-(y+ch));x+=cw+G});
+     y+=ch+maxLab+26;
+   }
+   const block=(head,body)=>{if(!body)return;y+=14;if(draw){ctx.strokeStyle='#2c2945';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(P,y);ctx.lineTo(W-P,y);ctx.stroke()}
+     y+=50;txt(head,'36px Forum, serif',C,P);ctx.font='29px Alegreya, Georgia, serif';
+     wrap(ctx,body.replace(/^[-•*]\s*/gm,'• '),W-2*P).forEach(l=>{y+=l?40:18;if(l)txt(l,'29px Alegreya, Georgia, serif',FG,P)});y+=16};
+   block('Итог',sum);block('Совет',advice);
+   y+=36;txt('Колода Райдера–Уэйта–Смит, 1909','20px "IBM Plex Mono", monospace',MU,W/2,'center');
+   return y+P-20;
+ };
+ const m=document.createElement('canvas').getContext('2d');const H=Math.ceil(run(m,false));
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
+ const g=ctx.createRadialGradient(W/2,H*.3,50,W/2,H*.3,W);g.addColorStop(0,'#1f1b38');g.addColorStop(1,BG);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#8a7342';ctx.lineWidth=2;ctx.strokeRect(22,22,W-44,H-44);
+ run(ctx,true);
+ return await new Promise(res=>cv.toBlob(res,'image/png'));
+}
+function fname(r){return 'tarot-'+r.date.slice(0,10)+'.png'}
+async function shareRecord(r,btn){
+ const text=shareText(r);
+ if(navigator.share){
+   btn&&(btn.disabled=true);
+   try{
+     let data={title:'Расклад таро',text};
+     try{const b=await makeImage(r);const f=new File([b],fname(r),{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[f]}))data={files:[f],title:'Расклад таро',text}}catch(e){}
+     await navigator.share(data);return;
+   }catch(e){if(e&&e.name==='AbortError')return}
+   finally{btn&&(btn.disabled=false)}
+ }
+ copyText(text,'Текст расклада скопирован');
+}
+async function saveImage(r,btn){
+ btn&&(btn.disabled=true);
+ try{
+   const blob=await makeImage(r);
+   if(IN_CLAUDE){
+     const dl=await window.claude.use('downloads').catch(()=>null);
+     if(!dl){toast('Сохранение картинки здесь недоступно');return}
+     try{await dl.save({filename:fname(r),data:blob});toast('Картинка сохранена')}
+     catch(e){if(e&&e.code==='declined')return;toast(e&&e.code==='rate_limited'?'Подождите немного и попробуйте снова':'Не удалось сохранить картинку')}
+   }else{
+     const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=fname(r);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+   }
+ }catch(e){toast('Не удалось собрать картинку')}
+ finally{btn&&(btn.disabled=false)}
+}
+/* read aloud */
+const TTS='speechSynthesis' in window&&'SpeechSynthesisUtterance' in window;
+let ttsBtn=null,ttsRun=0;
+function ruVoice(){
+ const vs=speechSynthesis.getVoices().filter(v=>/^ru/i.test(v.lang));
+ return vs.find(v=>/milena|yuri|google|natural|premium|enhanced/i.test(v.name))||vs[0]||null;
+}
+if(TTS){try{speechSynthesis.getVoices();speechSynthesis.addEventListener&&speechSynthesis.addEventListener('voiceschanged',()=>{})}catch(e){}}
+function speechText(r){
+ const t=r.text.replace(/^#{1,4}\s*(.+)$/gm,'$1.').replace(/\*\*(.+?)\*\*/g,'$1').replace(/\*/g,'').replace(/^[-•]\s*/gm,'').replace(/—/g,',').replace(/⟲/g,'');
+ return (r.q?'Вопрос: '+r.q+'.\n\n':'')+t;
+}
+function chunks(t){
+ const out=[];t.split(/\n+/).forEach(par=>{par=par.trim();if(!par)return;
+   const sents=par.match(/[^.!?…]+[.!?…]*\s*/g)||[par];let cur='';
+   sents.forEach(x=>{if((cur+x).length>220&&cur){out.push(cur.trim());cur=x}else cur+=x});if(cur.trim())out.push(cur.trim())});
+ return out;
+}
+function setSpeakBtn(b,on){if(!b)return;b.innerHTML=on?ICON.stop+'Остановить':ICON.speak+'Прочитать вслух';b.setAttribute('aria-pressed',on)}
+function stopSpeak(){ttsRun++;try{speechSynthesis.cancel()}catch(e){}setSpeakBtn(ttsBtn,false);ttsBtn=null}
+function speak(r,btn){
+ if(ttsBtn){const same=ttsBtn===btn;stopSpeak();if(same)return}
+ const parts=chunks(speechText(r));if(!parts.length)return;
+ const run=++ttsRun,v=ruVoice();
+ ttsBtn=btn;setSpeakBtn(btn,true);
+ try{speechSynthesis.cancel()}catch(e){}
+ parts.forEach((t,i)=>{
+   const u=new SpeechSynthesisUtterance(t);u.lang='ru-RU';if(v)u.voice=v;u.rate=.95;u.pitch=1;
+   if(i===parts.length-1)u.onend=()=>{if(run===ttsRun){setSpeakBtn(ttsBtn,false);ttsBtn=null}};
+   u.onerror=e=>{if(run===ttsRun&&e.error!=='interrupted'&&e.error!=='canceled'){stopSpeak();toast('Не получилось озвучить текст на этом устройстве')}};
+   speechSynthesis.speak(u);
+ });
+ if(!v)toast('Русский голос не найден, читаю голосом по умолчанию');
+}
+window.addEventListener('pagehide',()=>{if(TTS)stopSpeak()});
+
+function showShareBar(el,r){
+ el.innerHTML=(TTS?`<button class="sbtn" type="button" data-a="speak" aria-pressed="false">${ICON.speak}Прочитать вслух</button>`:'')+`<button class="sbtn" type="button" data-a="share">${ICON.share}Поделиться</button><button class="sbtn" type="button" data-a="copy">${ICON.copy}Копировать текст</button><button class="sbtn" type="button" data-a="image">${ICON.image}Сохранить картинку</button>`;
+ el.hidden=false;
+ el.onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
+   if(a==='speak')speak(r,b);else if(a==='share')shareRecord(r,b);else if(a==='copy')copyText(shareText(r),'Текст расклада скопирован');else saveImage(r,b)};
+}
+
+/* journal */
+const JK='tarot.journal.v1';
+function loadJ(){try{return JSON.parse(localStorage.getItem(JK)||'[]')}catch(e){return[]}}
+function storeJ(a){try{localStorage.setItem(JK,JSON.stringify(a))}catch(e){}}
+function saveJournal(q,text){
+ const a=loadJ();const sp=SPREADS[spreadKey];
+ const rec={id:Date.now(),date:new Date().toISOString(),q,spread:sp.name,mode,cards:sp.pos.map((p,k)=>({p:p.n,i:drawn[k].i,rev:drawn[k].rev})),text};
+ a.unshift(rec);storeJ(a.slice(0,40));renderJ();return rec;
+}
+function renderJ(){
+ const a=loadJ(),el=$('journal');
+ if(!a.length){el.innerHTML='<p class="note">Здесь будут сохраняться ваши расклады вместе с разбором. Пока записей нет.</p>';return}
+ el.innerHTML=a.map(r=>{const d=new Date(r.date);
+   const tag=r.mode==='real'?'своя колода':'онлайн';
+   return `<details class="j"><summary><span class="jq">${esc(r.q||'Без вопроса')} · <span style="color:var(--muted)">${esc(r.spread)}, ${tag}</span></span><span class="jd">${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})}</span></summary><div class="jbody"><div class="jthumbs">${r.cards.map(c=>`<img src="${img(c.i)}" alt="" loading="lazy" class="${c.rev?'r':''}">`).join('')}</div><div class="jcards">${r.cards.map((c,k)=>`${k+1}. ${esc(c.p)}: ${esc(DECK[c.i].name)}${c.rev?' (перев.)':''}`).join('<br>')}</div><div class="reading">${md(r.text)}</div><div class="sharebar" data-share="${r.id}"></div><button class="linkbtn" data-del="${r.id}">Удалить запись</button></div></details>`}).join('');
+ el.querySelectorAll('[data-share]').forEach(b=>{const r=a.find(x=>String(x.id)===b.dataset.share);if(r)showShareBar(b,r)});
+ el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{storeJ(loadJ().filter(r=>String(r.id)!==b.dataset.del));renderJ()}));
+}
+
+reset();renderJ();
+if(window.__SITE__&&'serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+})();
+</script>
+
+</body>
+</html>

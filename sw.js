@@ -1,0 +1,12 @@
+const V='tarot-73349421';
+const CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
+const CARDS=["cards/00.webp", "cards/01.webp", "cards/02.webp", "cards/03.webp", "cards/04.webp", "cards/05.webp", "cards/06.webp", "cards/07.webp", "cards/08.webp", "cards/09.webp", "cards/10.webp", "cards/11.webp", "cards/12.webp", "cards/13.webp", "cards/14.webp", "cards/15.webp", "cards/16.webp", "cards/17.webp", "cards/18.webp", "cards/19.webp", "cards/20.webp", "cards/21.webp", "cards/22.webp", "cards/23.webp", "cards/24.webp", "cards/25.webp", "cards/26.webp", "cards/27.webp", "cards/28.webp", "cards/29.webp", "cards/30.webp", "cards/31.webp", "cards/32.webp", "cards/33.webp", "cards/34.webp", "cards/35.webp", "cards/36.webp", "cards/37.webp", "cards/38.webp", "cards/39.webp", "cards/40.webp", "cards/41.webp", "cards/42.webp", "cards/43.webp", "cards/44.webp", "cards/45.webp", "cards/46.webp", "cards/47.webp", "cards/48.webp", "cards/49.webp", "cards/50.webp", "cards/51.webp", "cards/52.webp", "cards/53.webp", "cards/54.webp", "cards/55.webp", "cards/56.webp", "cards/57.webp", "cards/58.webp", "cards/59.webp", "cards/60.webp", "cards/61.webp", "cards/62.webp", "cards/63.webp", "cards/64.webp", "cards/65.webp", "cards/66.webp", "cards/67.webp", "cards/68.webp", "cards/69.webp", "cards/70.webp", "cards/71.webp", "cards/72.webp", "cards/73.webp", "cards/74.webp", "cards/75.webp", "cards/76.webp", "cards/77.webp"];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE).then(()=>c.addAll(CARDS).catch(()=>{}))));self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{
+  const u=new URL(e.request.url);
+  if(e.request.method!=='GET')return;
+  if(u.hostname==='api.anthropic.com')return;
+  if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(V).then(x=>x.put('index.html',c));return r}).catch(()=>caches.match('index.html')));return}
+  e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(r=>{if(r.ok&&(u.origin===location.origin||u.hostname.endsWith('gstatic.com')||u.hostname.endsWith('googleapis.com'))){const c=r.clone();caches.open(V).then(x=>x.put(e.request,c))}return r})));
+});
