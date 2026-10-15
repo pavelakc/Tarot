@@ -141,6 +141,11 @@ details.set summary{cursor:pointer;font-family:var(--mono);font-size:.72rem;lett
 .setbody{display:flex;flex-direction:column;gap:10px;padding-top:12px}
 .setbody input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px;min-width:0}
 .copyarea{width:100%;box-sizing:border-box;min-height:120px;font-size:.85rem}
+#bgRow{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:22px;padding-top:16px;border-top:1px dashed var(--line)}
+#bgSpread{width:84px}
+.bgtxt{display:flex;flex-direction:column;gap:2px;max-width:200px}
+.bgtxt b{font-family:var(--display);font-weight:400;font-size:1.1rem;color:var(--gold)}
+.bgtxt span{font-size:.85rem;color:var(--muted);line-height:1.35}
 @media (prefers-reduced-motion:reduce){.deal{animation:none}.inner{transition:none}}
 </style>
 <script>window.__SITE__=true</script>
@@ -166,6 +171,7 @@ details.set summary{cursor:pointer;font-family:var(--mono);font-size:.72rem;lett
   <div class="field">
     <span class="lbl">Расклад</span>
     <div class="seg" id="spreads"></div>
+    <label class="toggle"><input type="checkbox" id="bgOpt"> Карта фона (дно колоды)</label>
   </div>
 
   <div class="row" id="onlineCtl">
@@ -177,6 +183,7 @@ details.set summary{cursor:pointer;font-family:var(--mono);font-size:.72rem;lett
 
   <div class="table">
     <div class="spread" id="spread"></div>
+    <div id="bgRow" hidden><div id="bgSpread"></div><div class="bgtxt"><b>Фон</b><span>Нижняя карта колоды: общий фон и скрытое влияние</span></div></div>
     <p class="hint" id="hint"></p>
   </div>
 
@@ -297,8 +304,15 @@ Object.entries(SPREADS).forEach(([k,s])=>{
 });
 document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',()=>{mode=r.value;$('onlineCtl').hidden=mode!=='online';$('realCtl').hidden=mode!=='real';reset();}));
 
+let bgOn=false;
+try{bgOn=localStorage.getItem('tarot.bg.v1')==='1'}catch(e){}
+$('bgOpt').checked=bgOn;
+$('bgOpt').addEventListener('change',()=>{bgOn=$('bgOpt').checked;try{localStorage.setItem('tarot.bg.v1',bgOn?'1':'0')}catch(e){}reset();});
+const BGPOS={n:'Фон (дно колоды)',bg:true};
+function positions(){const sp=SPREADS[spreadKey];return bgOn?sp.pos.concat([BGPOS]):sp.pos}
+function numOf(p,k){return p.bg?'Ф':String(k+1)}
 function reset(){
- drawn=mode==='real'?SPREADS[spreadKey].pos.map(()=>null):[];
+ drawn=mode==='real'?positions().map(()=>null):[];
  if(ctrl){ctrl.abort();ctrl=null}
  $('reading').hidden=true;$('reading').innerHTML='';
  render(false);
@@ -308,31 +322,31 @@ function draw(){
  const sp=SPREADS[spreadKey];
  const idx=DECK.map((_,i)=>i);
  for(let i=idx.length-1;i>0;i--){const j=rnd(i+1);[idx[i],idx[j]]=[idx[j],idx[i]]}
- drawn=sp.pos.map((_,i)=>({i:idx[i],rev:rnd(2)===1,open:false}));
+ drawn=positions().map((p,i)=>({i:p.bg?idx[idx.length-1]:idx[i],rev:rnd(2)===1,open:false}));
  if(ctrl){ctrl.abort();ctrl=null}
  $('reading').hidden=true;$('reading').innerHTML='';
  render(true);
 }
 
-function complete(){const sp=SPREADS[spreadKey];return drawn.length===sp.pos.length&&drawn.every(d=>d&&d.open)}
+function complete(){const ps=positions();return drawn.length===ps.length&&drawn.every(d=>d&&d.open)}
 
 function render(animate){
  const sp=SPREADS[spreadKey], el=$('spread');
  el.style.setProperty('--cols',sp.cols);el.style.setProperty('--cw',sp.cw);
  el.classList.toggle('arc',!!sp.arc);
- el.innerHTML='';
+ el.innerHTML='';$('bgSpread').innerHTML='';$('bgRow').hidden=!bgOn;
  const FLIP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5"/><path d="M20 3.5v5h-5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.5"/><path d="M4 20.5v-5h5"/></svg>';
- sp.pos.forEach((p,k)=>{
+ positions().forEach((p,k)=>{
    const d=drawn[k];
    const cell=document.createElement('div');
    cell.className='cell'+(p.x?' cross':'');
-   cell.style.gridColumn=p.c+' / span '+(p.s||1);cell.style.gridRow=p.r||1;
+   if(!p.bg){cell.style.gridColumn=p.c+' / span '+(p.s||1);cell.style.gridRow=p.r||1;}
    if(p.dy)cell.style.setProperty('--dy',p.dy);
    const b=document.createElement('button');
    b.className='card'+(d&&d.open?' open':'')+(d&&d.rev?' rev':'');
-   const lab=()=>(k+1)+'. '+p.n+(d&&d.open?': '+DECK[d.i].name+(d.rev?', перевёрнутая':''):(mode==='real'?', выбрать карту':''));
+   const lab=()=>(p.bg?'':(k+1)+'. ')+p.n+(d&&d.open?': '+DECK[d.i].name+(d.rev?', перевёрнутая':''):(mode==='real'?', выбрать карту':''));
    b.setAttribute('aria-label',lab());
-   cell.insertAdjacentHTML('beforeend',`<span class="badge">${k+1}</span>`);
+   cell.insertAdjacentHTML('beforeend',`<span class="badge">${numOf(p,k)}</span>`);
    if(mode==='real'&&!d){
      b.innerHTML=`<span class="slot">+</span>`;
      b.addEventListener('click',()=>openPicker(k));
@@ -355,7 +369,7 @@ function render(animate){
      f.addEventListener('click',e=>{e.stopPropagation();d.rev=!d.rev;b.classList.toggle('rev',d.rev);b.setAttribute('aria-label',lab());setF();$('reading').hidden=true;$('shareBar').hidden=true;update();});
      cell.appendChild(f);
    }
-   el.appendChild(cell);
+   (p.bg?$('bgSpread'):el).appendChild(cell);
  });
  update();
 }
@@ -364,24 +378,24 @@ function update(){
  const sp=SPREADS[spreadKey], has=drawn.some(Boolean), done=complete();
  const filled=drawn.filter(Boolean).length;
  $('hint').textContent=mode==='real'
-   ?(done?'Все карты на месте. Кнопка ⟲ у карты переворачивает её, нажатие на карту меняет её':`Нажмите на позицию и выберите карту, которая выпала · ${filled} из ${sp.pos.length}`)
+   ?(done?'Все карты на месте. Кнопка ⟲ у карты переворачивает её, нажатие на карту меняет её':`Нажмите на позицию и выберите карту, которая выпала · ${filled} из ${positions().length}`)
    :(!has?'Нажмите «Перемешать и разложить»':done?'Все карты открыты':'Нажмите на карту, чтобы открыть её');
  $('openAll').hidden=mode==='real';
  $('openAll').disabled=!has||done;
  $('readBtn').disabled=!done;
  if(!done){$('shareBar').hidden=true}
- $('legend').innerHTML=sp.pos.map((p,k)=>{
+ $('legend').innerHTML=positions().map((p,k)=>{
    const d=drawn[k];let body;
    if(d&&d.open){const c=DECK[d.i];body=`<div class="cname">${esc(c.name)}${d.rev?'<em>перевёрнутая</em>':''}</div><div class="kw">${esc(d.rev?c.rev:c.up)}</div>`}
    else body=`<div class="kw">${mode==='real'?'не выбрана':has?'карта закрыта':'—'}</div>`;
-   return `<li><span class="num">${String(k+1).padStart(2,'0')}</span><div><div class="pos">${esc(p.n)}</div>${body}</div></li>`;
+   return `<li><span class="num">${p.bg?'Ф':String(k+1).padStart(2,'0')}</span><div><div class="pos">${esc(p.n)}</div>${body}</div></li>`;
  }).join('');
 }
 
 $('draw').addEventListener('click',draw);
 $('clearReal').addEventListener('click',reset);
 $('openAll').addEventListener('click',()=>{
- const cards=[...$('spread').querySelectorAll('.card')];
+ const cards=[...document.querySelectorAll('#spread .card, #bgSpread .card')];
  drawn.forEach((d,k)=>{if(d&&!d.open){setTimeout(()=>{d.open=true;cards[k].classList.add('open');update();},k*140)}});
 });
 
@@ -394,7 +408,7 @@ $('pSearch').addEventListener('input',renderGrid);
 function openPicker(k){
  pPos=k;lastFocus=document.activeElement;
  const d=drawn[k];
- $('pTitle').textContent=(k+1)+'. '+SPREADS[spreadKey].pos[k].n;
+ {const p=positions()[k];$('pTitle').textContent=(p.bg?'':(k+1)+'. ')+p.n;}
  $('pRemove').hidden=!d;
  $('pSearch').value='';
  $('sheet').hidden=false;document.body.classList.add('lock');
@@ -440,15 +454,17 @@ function md(t){
 
 function buildPrompt(q){
  const sp=SPREADS[spreadKey];
- const cards=sp.pos.map((p,k)=>{const d=drawn[k],c=DECK[d.i];
+ const hasBg=bgOn;
+ const cards=positions().map((p,k)=>{const d=drawn[k],c=DECK[d.i];
    const extra=c.major?'Старший аркан':`Младший аркан, масть ${c.suit.n.toLowerCase()}, стихия ${c.suit.el}`;
+   if(p.bg)return `Карта фона (дно колоды): ${c.name} (${d.rev?'перевёрнутая':'прямая'}; ${extra}). Ключевые значения: ${d.rev?c.rev:c.up}.`;
    return `${k+1}. Позиция «${p.n}»: ${c.name} (${d.rev?'перевёрнутая':'прямая'}; ${extra}). Ключевые значения: ${d.rev?c.rev:c.up}.`}).join('\n');
  return `Ты опытный, вдумчивый таролог, работаешь с колодой Райдера–Уэйта–Смит. Сделай полный разбор расклада на русском языке, тёплым и ясным языком, без воды. Опирайся и на традиционные значения, и на образы карт этой колоды.
 
 Вопрос: ${q||'(вопрос не задан, сделай общий разбор текущей ситуации)'}
 Расклад: ${sp.name}
 ${mode==='real'?'Карты вытянуты человеком из настоящей колоды.':'Карты вытянуты случайно онлайн.'}
-${sp.extra?sp.extra+'\n':''}Карты:
+${sp.extra?sp.extra+'\n':''}${hasBg?'Дополнительно открыта карта фона, нижняя карта колоды. Она не занимает позицию в раскладе, а показывает общую атмосферу, скрытое влияние и то, что стоит за ситуацией. В разделе «Карты по позициям» разбери её последней отдельным абзацем, начиная с **Фон — Карта (прямая/перевёрнутая)**, а в разделе «Связи между картами» скажи, как этот фон окрашивает весь расклад.\n':''}Карты:
 ${cards}
 
 Формат ответа (Markdown):
@@ -535,7 +551,7 @@ function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTime
 function fmtDate(iso){return new Date(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'})}
 function plain(t){return t.replace(/^#{1,4}\s*(.+)$/gm,(m,h)=>h.toUpperCase()).replace(/\*\*(.+?)\*\*/g,'$1').replace(/(^|[^*])\*(?!\s)(.+?)\*/g,'$1$2').replace(/\n{3,}/g,'\n\n').trim()}
 function shareText(r){
- return `ТАРО · ${r.spread} · ${fmtDate(r.date)}\n`+(r.q?`Вопрос: ${r.q}\n`:'')+`\n`+r.cards.map((c,k)=>`${k+1}. ${c.p}: ${DECK[c.i].name}${c.rev?' (перевёрнутая)':''}`).join('\n')+`\n\n`+plain(r.text);
+ return `ТАРО · ${r.spread} · ${fmtDate(r.date)}\n`+(r.q?`Вопрос: ${r.q}\n`:'')+`\n`+r.cards.map((c,k)=>`${c.bg?'Фон':k+1+'.'} ${c.bg?'':c.p+': '}${DECK[c.i].name}${c.rev?' (перевёрнутая)':''}`).join('\n')+`\n\n`+plain(r.text);
 }
 function copyText(t,okMsg){
  const fallback=()=>{
@@ -581,7 +597,7 @@ async function makeImage(r){
          if(im)ctx.drawImage(im,-cw/2,-ch/2,cw,ch);ctx.restore()}
        let ly=y+ch+30;
        const lab=(t,font,col)=>{ctx.font=font;wrap(ctx,t,cw+G-6).forEach(l=>{if(draw){ctx.fillStyle=col;ctx.textAlign='center';ctx.fillText(l,x+cw/2,ly)}ly+=parseInt(font)+6})};
-       lab((k+1)+'. '+c.p.toUpperCase(),'17px "IBM Plex Mono", monospace',MU);
+       lab(c.bg?'ФОН · ДНО КОЛОДЫ':(k+1)+'. '+c.p.toUpperCase(),'17px "IBM Plex Mono", monospace',MU);
        lab(DECK[c.i].name+(c.rev?' ⟲':''),'23px Forum, serif',FG);
        maxLab=Math.max(maxLab,ly-(y+ch));x+=cw+G});
      y+=ch+maxLab+26;
@@ -678,7 +694,7 @@ function loadJ(){try{return JSON.parse(localStorage.getItem(JK)||'[]')}catch(e){
 function storeJ(a){try{localStorage.setItem(JK,JSON.stringify(a))}catch(e){}}
 function saveJournal(q,text){
  const a=loadJ();const sp=SPREADS[spreadKey];
- const rec={id:Date.now(),date:new Date().toISOString(),q,spread:sp.name,mode,cards:sp.pos.map((p,k)=>({p:p.n,i:drawn[k].i,rev:drawn[k].rev})),text};
+ const rec={id:Date.now(),date:new Date().toISOString(),q,spread:sp.name,mode,cards:positions().map((p,k)=>({p:p.n,i:drawn[k].i,rev:drawn[k].rev,bg:p.bg?1:undefined})),text};
  a.unshift(rec);storeJ(a.slice(0,40));renderJ();return rec;
 }
 function renderJ(){
@@ -686,7 +702,7 @@ function renderJ(){
  if(!a.length){el.innerHTML='<p class="note">Здесь будут сохраняться ваши расклады вместе с разбором. Пока записей нет.</p>';return}
  el.innerHTML=a.map(r=>{const d=new Date(r.date);
    const tag=r.mode==='real'?'своя колода':'онлайн';
-   return `<details class="j"><summary><span class="jq">${esc(r.q||'Без вопроса')} · <span style="color:var(--muted)">${esc(r.spread)}, ${tag}</span></span><span class="jd">${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})}</span></summary><div class="jbody"><div class="jthumbs">${r.cards.map(c=>`<img src="${img(c.i)}" alt="" loading="lazy" class="${c.rev?'r':''}">`).join('')}</div><div class="jcards">${r.cards.map((c,k)=>`${k+1}. ${esc(c.p)}: ${esc(DECK[c.i].name)}${c.rev?' (перев.)':''}`).join('<br>')}</div><div class="reading">${md(r.text)}</div><div class="sharebar" data-share="${r.id}"></div><button class="linkbtn" data-del="${r.id}">Удалить запись</button></div></details>`}).join('');
+   return `<details class="j"><summary><span class="jq">${esc(r.q||'Без вопроса')} · <span style="color:var(--muted)">${esc(r.spread)}, ${tag}</span></span><span class="jd">${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short'})}</span></summary><div class="jbody"><div class="jthumbs">${r.cards.map(c=>`<img src="${img(c.i)}" alt="" loading="lazy" class="${c.rev?'r':''}">`).join('')}</div><div class="jcards">${r.cards.map((c,k)=>`${c.bg?'Фон':k+1+'. '+esc(c.p)}: ${esc(DECK[c.i].name)}${c.rev?' (перев.)':''}`).join('<br>')}</div><div class="reading">${md(r.text)}</div><div class="sharebar" data-share="${r.id}"></div><button class="linkbtn" data-del="${r.id}">Удалить запись</button></div></details>`}).join('');
  el.querySelectorAll('[data-share]').forEach(b=>{const r=a.find(x=>String(x.id)===b.dataset.share);if(r)showShareBar(b,r)});
  el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{storeJ(loadJ().filter(r=>String(r.id)!==b.dataset.del));renderJ()}));
 }
